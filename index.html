@@ -1,238 +1,426 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistema PDV</title>
+  <title>Sistema de Logística Futurístico</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.min.js"></script>
   <style>
-    :root {
-      --background: #fff;
-      --text: #333;
-      --primary: #6200ea;
-      --accent: #03dac5;
-    }
-
+    /* Estilos globais */
     body {
-      font-family: Arial, sans-serif;
-      background: var(--background);
-      color: var(--text);
+      font-family: 'Arial', sans-serif;
       margin: 0;
-      padding: 0;
+      background: #0f172a;
+      color: #f1f5f9;
+      overflow: hidden;
+      height: 100vh;
+      transition: background 0.3s, color 0.3s;
+      position: relative;
     }
 
-    header {
-      background: var(--primary);
-      color: #fff;
-      padding: 1rem;
+    body.light-mode {
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+
+    /* Planeta 3D */
+    #planetCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: -1;
+      filter: blur(5px);
+    }
+
+    /* Tela de Login */
+    .login-container {
       display: flex;
-      justify-content: space-between;
+      justify-content: center;
       align-items: center;
+      height: 100vh;
+      background: rgba(15, 23, 42, 0.8);
+      position: absolute;
+      inset: 0;
     }
 
-    header h1 {
+    .login-box {
+      background: rgba(15, 23, 42, 0.9);
+      padding: 40px;
+      border-radius: 15px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+      width: 300px;
+      text-align: center;
+      z-index: 1;
+    }
+
+    .login-box input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border-radius: 10px;
+      border: none;
+      background: #1e293b;
+      color: #f1f5f9;
+    }
+
+    .login-box button {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      background: #38bdf8;
+      color: #0f172a;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .login-box button:hover {
+      background: #0284c7;
+    }
+
+    /* Sistema de Logística */
+    .container {
+      position: relative;
+      z-index: 10;
+      width: 90%;
+      max-width: 1400px;
+      margin: 50px auto;
+      padding: 30px;
+      background: rgba(15, 23, 42, 0.9);
+      border-radius: 15px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+      transition: background 0.3s;
+      opacity: 0;
+      animation: fadeIn 1s forwards;
+    }
+
+    .container.light-mode {
+      background: rgba(15, 23, 42, 0.2);
+    }
+
+    @keyframes fadeIn {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+
+    h1, h2 {
+      text-align: center;
+      color: #38bdf8;
+      text-shadow: 0 0 15px #38bdf8;
+      transition: color 0.3s ease;
+    }
+
+    .mode-toggle {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 12px 20px;
+      background: linear-gradient(45deg, #38bdf8, #0284c7);
+      color: #0f172a;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      font-weight: bold;
+      z-index: 20;
+      transition: transform 0.2s, box-shadow 0.3s ease-in-out;
+    }
+
+    .mode-toggle:hover {
+      background: linear-gradient(45deg, #0284c7, #38bdf8);
+      transform: scale(1.1);
+      box-shadow: 0 0 20px rgba(0, 0, 255, 0.5);
+    }
+
+    /* Toast de notificação */
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #22c55e;
+      color: #0f172a;
+      padding: 15px 20px;
+      border-radius: 10px;
+      font-weight: bold;
+      z-index: 50;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      transform: translateX(100%);
+      transition: all 0.5s ease;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    /* Formulário e Tabela de Cadastro */
+    .form-input, .filter-input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      border-radius: 10px;
+      border: none;
+      background: #1e293b;
+      color: #f1f5f9;
+    }
+
+    .form-input:focus, .filter-input:focus {
+      outline: none;
+      border: 2px solid #38bdf8;
+    }
+
+    .form-input[type="number"] {
+      -moz-appearance: textfield;
+    }
+
+    .form-input[type="number"]::-webkit-outer-spin-button,
+    .form-input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none;
       margin: 0;
     }
 
-    main {
-      padding: 1rem;
+    button[type="submit"] {
+      padding: 12px 20px;
+      background: #38bdf8;
+      border-radius: 10px;
+      color: #0f172a;
+      font-weight: bold;
+      width: 100%;
+      cursor: pointer;
+      transition: background 0.3s;
     }
 
-    section {
-      margin-bottom: 2rem;
-    }
-
-    form {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-
-    form input,
-    form button,
-    #product-select {
-      padding: 0.5rem;
-      font-size: 1rem;
-    }
-
-    #cart {
-      margin-top: 1rem;
+    button[type="submit"]:hover {
+      background: #0284c7;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
+      margin-top: 20px;
     }
 
     th, td {
-      border: 1px solid #ddd;
-      padding: 0.5rem;
-      text-align: left;
+      padding: 12px;
+      text-align: center;
+      border: 1px solid #f1f5f9;
+      border-radius: 8px;
     }
 
-    #total {
-      margin-top: 1rem;
-      font-size: 1.2rem;
-      font-weight: bold;
+    th {
+      background: #38bdf8;
+      color: #0f172a;
     }
 
-    button {
-      background: var(--primary);
-      color: #fff;
-      border: none;
+    td {
+      background: rgba(15, 23, 42, 0.7);
+      color: #f1f5f9;
+    }
+
+    td:hover {
+      background: rgba(15, 23, 42, 0.9);
       cursor: pointer;
     }
 
-    button:hover {
-      background: var(--accent);
+    .chart-container {
+      margin: 30px auto;
+      max-width: 80%;
+      border-radius: 15px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+      padding: 15px;
+      background: rgba(15, 23, 42, 0.8);
     }
 
-    [data-theme="dark"] {
-      --background: #121212;
-      --text: #e1e1e1;
-      --primary: #bb86fc;
-      --accent: #03dac5;
-    }
   </style>
 </head>
 <body>
-  <header>
-    <h1>Sistema PDV Básico</h1>
-    <button id="toggle-theme">🌙 Modo Escuro</button>
-  </header>
+  <canvas id="planetCanvas"></canvas>
 
-  <main>
-    <section id="product-form">
-      <h2>Cadastro de Produto</h2>
-      <form id="add-product">
-        <input type="text" id="product-name" placeholder="Nome do Produto" required>
-        <input type="number" id="product-price" placeholder="Preço (R$)" step="0.01" required>
-        <input type="number" id="product-stock" placeholder="Quantidade" required>
-        <button type="submit">Adicionar Produto</button>
-      </form>
-    </section>
+  <!-- Tela de Login -->
+  <div class="login-container" id="loginScreen">
+    <div class="login-box">
+      <h2>Login</h2>
+      <input type="text" id="username" placeholder="Usuário" required>
+      <input type="password" id="password" placeholder="Senha" required>
+      <button onclick="login()">Entrar</button>
+    </div>
+  </div>
 
-    <section id="sales-section">
-      <h2>Vendas</h2>
-      <div id="sales-form">
-        <select id="product-select">
-          <option value="">Selecione um Produto</option>
-        </select>
-        <input type="number" id="sale-quantity" placeholder="Quantidade" required>
-        <button id="add-to-cart">Adicionar ao Carrinho</button>
-      </div>
-      <div id="cart">
-        <h3>Carrinho</h3>
+  <!-- Sistema de Logística -->
+  <div id="logisticsSystem" style="display: none;">
+    <button class="mode-toggle" onclick="toggleMode()">Modo Claro</button>
+    <div class="toast" id="toast">Produto adicionado com sucesso!</div>
+    <div class="container">
+      <h1>Sistema de Logística Futurístico</h1>
+      <section>
+        <h2>Cadastro de Produtos</h2>
+        <form id="productForm">
+          <input type="text" id="productName" class="form-input" placeholder="Nome do Produto" required>
+          <input type="number" id="productQuantity" class="form-input" placeholder="Quantidade" min="1" required>
+          <input type="number" id="productPrice" class="form-input" placeholder="Preço (R$)" step="0.01" min="0" required>
+          <select id="productSupplier" class="form-input" required>
+            <option value="" disabled selected>Selecione o Fornecedor</option>
+            <option value="Fornecedor A">Fornecedor A</option>
+            <option value="Fornecedor B">Fornecedor B</option>
+            <option value="Fornecedor C">Fornecedor C</option>
+          </select>
+          <button type="submit">Adicionar Produto</button>
+        </form>
+      </section>
+      <section>
+        <h2>Estoque Atual</h2>
+        <input type="text" id="filterInput" class="filter-input" placeholder="Buscar Produto...">
         <table>
           <thead>
             <tr>
               <th>Produto</th>
-              <th>Qtd</th>
-              <th>Preço</th>
+              <th>Fornecedor</th>
+              <th>Quantidade</th>
+              <th>Preço Unitário (R$)</th>
+              <th>Valor Total (R$)</th>
             </tr>
           </thead>
-          <tbody></tbody>
+          <tbody id="productTable"></tbody>
         </table>
-        <div id="total">Total: R$ 0.00</div>
-        <button id="finalize-sale">Finalizar Venda</button>
-      </div>
-    </section>
-  </main>
-
-  <footer>
-    <p>Desenvolvido para Testes</p>
-  </footer>
+      </section>
+      <section>
+        <h2>Resumo Gráfico</h2>
+        <div class="chart-container">
+          <canvas id="stockChart"></canvas>
+        </div>
+        <div class="chart-container">
+          <canvas id="valueChart"></canvas>
+        </div>
+        <div class="chart-container">
+          <canvas id="financeChart"></canvas>
+        </div>
+      </section>
+    </div>
+  </div>
 
   <script>
-    const productForm = document.getElementById("add-product");
-    const productSelect = document.getElementById("product-select");
-    const cartTableBody = document.querySelector("#cart tbody");
-    const totalDisplay = document.getElementById("total");
-    const themeToggle = document.getElementById("toggle-theme");
-    let cart = [];
-    let products = JSON.parse(localStorage.getItem("products")) || [];
+    // Alternar modo claro/escuro
+    function toggleMode() {
+      const body = document.body;
+      const container = document.querySelector('.container');
+      const button = document.querySelector('.mode-toggle');
 
-    // Modo claro/escuro
-    themeToggle.addEventListener("click", () => {
-      document.body.dataset.theme =
-        document.body.dataset.theme === "dark" ? "" : "dark";
-    });
-
-    // Atualizar seletor de produtos
-    function updateProductSelect() {
-      productSelect.innerHTML =
-        '<option value="">Selecione um Produto</option>';
-      products.forEach((product, index) => {
-        productSelect.innerHTML += `<option value="${index}">${product.name}</option>`;
-      });
+      body.classList.toggle('light-mode');
+      container.classList.toggle('light-mode');
+      button.textContent = body.classList.contains('light-mode') ? 'Modo Escuro' : 'Modo Claro';
     }
 
-    // Adicionar produto
-    productForm.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const name = document.getElementById("product-name").value;
-      const price = parseFloat(document.getElementById("product-price").value);
-      const stock = parseInt(document.getElementById("product-stock").value);
+    // Função de login
+    function login() {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
 
-      products.push({ name, price, stock });
-      localStorage.setItem("products", JSON.stringify(products));
-      updateProductSelect();
-      productForm.reset();
-      alert("Produto adicionado!");
-    });
-
-    // Adicionar ao carrinho
-    document.getElementById("add-to-cart").addEventListener("click", () => {
-      const productIndex = productSelect.value;
-      const quantity = parseInt(document.getElementById("sale-quantity").value);
-
-      if (!productIndex || quantity <= 0) return alert("Dados inválidos!");
-
-      const product = products[productIndex];
-      if (quantity > product.stock)
-        return alert("Quantidade em estoque insuficiente!");
-
-      product.stock -= quantity;
-      localStorage.setItem("products", JSON.stringify(products));
-      updateProductSelect();
-
-      const item = cart.find((i) => i.name === product.name);
-      if (item) {
-        item.quantity += quantity;
+      if (username === 'admin' && password === '1234') {
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('logisticsSystem').style.display = 'block';
       } else {
-        cart.push({ name: product.name, price: product.price, quantity });
+        alert('Usuário ou senha incorretos!');
       }
-
-      updateCart();
-    });
-
-    // Atualizar carrinho
-    function updateCart() {
-      cartTableBody.innerHTML = "";
-      let total = 0;
-
-      cart.forEach((item) => {
-        total += item.price * item.quantity;
-        cartTableBody.innerHTML += `
-          <tr>
-            <td>${item.name}</td>
-            <td>${item.quantity}</td>
-            <td>R$ ${(item.price * item.quantity).toFixed(2)}</td>
-          </tr>`;
-      });
-
-      totalDisplay.textContent = `Total: R$ ${total.toFixed(2)}`;
     }
 
-    // Finalizar venda
-    document.getElementById("finalize-sale").addEventListener("click", () => {
-      if (!cart.length) return alert("Carrinho vazio!");
-      alert("Venda finalizada com sucesso!");
-      cart = [];
-      updateCart();
+    // Toast de notificação
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // Planeta 3D
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('planetCanvas') });
+
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    const sphere = new THREE.Mesh(
+      new THREE.SphereGeometry(20, 64, 64),
+      new THREE.MeshStandardMaterial({ color: '#38bdf8', wireframe: true, emissive: '#0284c7' })
+    );
+
+    scene.add(sphere);
+    const light = new THREE.PointLight('#ffffff', 1);
+    light.position.set(50, 50, 50);
+    scene.add(light);
+    camera.position.z = 50;
+
+    function animate() {
+      requestAnimationFrame(animate);
+      sphere.rotation.y += 0.002;
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    window.addEventListener('resize', () => {
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
     });
 
-    // Inicializar
-    updateProductSelect();
+    // Adicionando gráficos financeiros
+    const financeChartCtx = document.getElementById('financeChart').getContext('2d');
+    const financeChart = new Chart(financeChartCtx, {
+      type: 'bar',
+      data: {
+        labels: ['Produto 1', 'Produto 2', 'Produto 3'],
+        datasets: [{
+          label: 'Custo (R$)',
+          data: [200, 400, 300],
+          backgroundColor: 'rgba(255, 99, 132, 0.6)',
+          borderColor: 'rgba(255, 99, 132, 1)',
+          borderWidth: 1
+        }, {
+          label: 'Lucro (R$)',
+          data: [300, 500, 400],
+          backgroundColor: 'rgba(54, 162, 235, 0.6)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: 'top',
+          },
+        },
+      }
+    });
+
+    // Gráfico de Vendas
+    const salesChartCtx = document.getElementById('valueChart').getContext('2d');
+    const salesChart = new Chart(salesChartCtx, {
+      type: 'line',
+      data: {
+        labels: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho'],
+        datasets: [{
+          label: 'Vendas (R$)',
+          data: [1200, 1500, 1800, 2000, 2300, 2500],
+          fill: false,
+          borderColor: 'rgba(75, 192, 192, 1)',
+          tension: 0.1
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: 'top',
+          },
+        },
+      }
+    });
+
+    // Atualizar UI no carregamento
+    document.body.classList.add('light-mode');
   </script>
 </body>
 </html>
