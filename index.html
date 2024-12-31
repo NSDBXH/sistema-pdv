@@ -325,38 +325,140 @@
       }
     }
 
-    // Toast de notificação
-    function showToast(message) {
+    // Função de adicionar produto
+    document.getElementById('productForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const productName = document.getElementById('productName').value;
+      const productQuantity = parseInt(document.getElementById('productQuantity').value);
+      const productPrice = parseFloat(document.getElementById('productPrice').value);
+      const productSupplier = document.getElementById('productSupplier').value;
+
+      const product = {
+        name: productName,
+        quantity: productQuantity,
+        price: productPrice,
+        supplier: productSupplier,
+        total: productQuantity * productPrice
+      };
+
+      addProductToTable(product);
+      saveProductToLocalStorage(product);
+      showToast();
+      updateCharts();
+    });
+
+    // Exibir produto na tabela
+    function addProductToTable(product) {
+      const tableBody = document.getElementById('productTable');
+      const row = document.createElement('tr');
+
+      row.innerHTML = `
+        <td>${product.name}</td>
+        <td>${product.supplier}</td>
+        <td>${product.quantity}</td>
+        <td>${product.price.toFixed(2)}</td>
+        <td>${product.total.toFixed(2)}</td>
+      `;
+
+      tableBody.appendChild(row);
+    }
+
+    // Armazenar produto no LocalStorage
+    function saveProductToLocalStorage(product) {
+      const products = JSON.parse(localStorage.getItem('products')) || [];
+      products.push(product);
+      localStorage.setItem('products', JSON.stringify(products));
+    }
+
+    // Exibir Toast
+    function showToast() {
       const toast = document.getElementById('toast');
-      toast.textContent = message;
       toast.classList.add('show');
       setTimeout(() => toast.classList.remove('show'), 3000);
     }
 
-    // Planeta 3D
+    // Atualizar gráficos
+    function updateCharts() {
+      const products = JSON.parse(localStorage.getItem('products')) || [];
+      const productNames = products.map(p => p.name);
+      const productQuantities = products.map(p => p.quantity);
+      const productValues = products.map(p => p.total);
+
+      // Atualizar gráfico de estoque
+      stockChart.data.labels = productNames;
+      stockChart.data.datasets[0].data = productQuantities;
+      stockChart.update();
+
+      // Atualizar gráfico de valores
+      valueChart.data.labels = productNames;
+      valueChart.data.datasets[0].data = productValues;
+      valueChart.update();
+    }
+
+    // Iniciar gráfico
+    const stockChart = new Chart(document.getElementById('stockChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Quantidade',
+          data: [],
+          backgroundColor: '#38bdf8',
+          borderColor: '#0284c7',
+          borderWidth: 1
+        }]
+      }
+    });
+
+    const valueChart = new Chart(document.getElementById('valueChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Valor Total (R$)',
+          data: [],
+          backgroundColor: '#38bdf8',
+          borderColor: '#0284c7',
+          borderWidth: 1
+        }]
+      }
+    });
+
+    const financeChart = new Chart(document.getElementById('financeChart').getContext('2d'), {
+      type: 'pie',
+      data: {
+        labels: ['Receitas', 'Despesas'],
+        datasets: [{
+          data: [10000, 2000],
+          backgroundColor: ['#38bdf8', '#f87171'],
+          borderWidth: 1
+        }]
+      }
+    });
+
+    // Planeta 3D girando com Three.js
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('planetCanvas') });
-
     renderer.setSize(window.innerWidth, window.innerHeight);
+    camera.position.z = 50;
 
     const sphere = new THREE.Mesh(
       new THREE.SphereGeometry(20, 64, 64),
       new THREE.MeshStandardMaterial({ color: '#38bdf8', wireframe: true, emissive: '#0284c7' })
     );
-
     scene.add(sphere);
+
     const light = new THREE.PointLight('#ffffff', 1);
     light.position.set(50, 50, 50);
     scene.add(light);
-    camera.position.z = 50;
 
     function animate() {
       requestAnimationFrame(animate);
       sphere.rotation.y += 0.002;
       renderer.render(scene, camera);
     }
-
     animate();
 
     window.addEventListener('resize', () => {
@@ -364,63 +466,6 @@
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
     });
-
-    // Adicionando gráficos financeiros
-    const financeChartCtx = document.getElementById('financeChart').getContext('2d');
-    const financeChart = new Chart(financeChartCtx, {
-      type: 'bar',
-      data: {
-        labels: ['Produto 1', 'Produto 2', 'Produto 3'],
-        datasets: [{
-          label: 'Custo (R$)',
-          data: [200, 400, 300],
-          backgroundColor: 'rgba(255, 99, 132, 0.6)',
-          borderColor: 'rgba(255, 99, 132, 1)',
-          borderWidth: 1
-        }, {
-          label: 'Lucro (R$)',
-          data: [300, 500, 400],
-          backgroundColor: 'rgba(54, 162, 235, 0.6)',
-          borderColor: 'rgba(54, 162, 235, 1)',
-          borderWidth: 1
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: {
-            position: 'top',
-          },
-        },
-      }
-    });
-
-    // Gráfico de Vendas
-    const salesChartCtx = document.getElementById('valueChart').getContext('2d');
-    const salesChart = new Chart(salesChartCtx, {
-      type: 'line',
-      data: {
-        labels: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho'],
-        datasets: [{
-          label: 'Vendas (R$)',
-          data: [1200, 1500, 1800, 2000, 2300, 2500],
-          fill: false,
-          borderColor: 'rgba(75, 192, 192, 1)',
-          tension: 0.1
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: {
-            position: 'top',
-          },
-        },
-      }
-    });
-
-    // Atualizar UI no carregamento
-    document.body.classList.add('light-mode');
   </script>
 </body>
 </html>
