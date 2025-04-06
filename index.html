@@ -1,470 +1,162 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistema de Logística Futurístico</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sistema de Estoque</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.min.js"></script>
-  <style>
-    /* Estilos globais */
-    body {
-      font-family: 'Arial', sans-serif;
-      margin: 0;
-      background: #0f172a;
-      color: #f1f5f9;
-      overflow: hidden;
-      height: 100vh;
-      transition: background 0.3s, color 0.3s;
-      position: relative;
-    }
-
-    body.light-mode {
-      background: #f1f5f9;
-      color: #0f172a;
-    }
-
-    /* Planeta 3D */
-    #planetCanvas {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      z-index: -1;
-      filter: blur(5px);
-    }
-
-    /* Tela de Login */
-    .login-container {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      background: rgba(15, 23, 42, 0.8);
-      position: absolute;
-      inset: 0;
-    }
-
-    .login-box {
-      background: rgba(15, 23, 42, 0.9);
-      padding: 40px;
-      border-radius: 15px;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-      width: 300px;
-      text-align: center;
-      z-index: 1;
-    }
-
-    .login-box input {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 15px;
-      border-radius: 10px;
-      border: none;
-      background: #1e293b;
-      color: #f1f5f9;
-    }
-
-    .login-box button {
-      width: 100%;
-      padding: 12px;
-      border-radius: 10px;
-      background: #38bdf8;
-      color: #0f172a;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    .login-box button:hover {
-      background: #0284c7;
-    }
-
-    /* Sistema de Logística */
-    .container {
-      position: relative;
-      z-index: 10;
-      width: 90%;
-      max-width: 1400px;
-      margin: 50px auto;
-      padding: 30px;
-      background: rgba(15, 23, 42, 0.9);
-      border-radius: 15px;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-      transition: background 0.3s;
-      opacity: 0;
-      animation: fadeIn 1s forwards;
-    }
-
-    .container.light-mode {
-      background: rgba(15, 23, 42, 0.2);
-    }
-
-    @keyframes fadeIn {
-      0% { opacity: 0; }
-      100% { opacity: 1; }
-    }
-
-    h1, h2 {
-      text-align: center;
-      color: #38bdf8;
-      text-shadow: 0 0 15px #38bdf8;
-      transition: color 0.3s ease;
-    }
-
-    .mode-toggle {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      padding: 12px 20px;
-      background: linear-gradient(45deg, #38bdf8, #0284c7);
-      color: #0f172a;
-      border: none;
-      border-radius: 30px;
-      cursor: pointer;
-      font-weight: bold;
-      z-index: 20;
-      transition: transform 0.2s, box-shadow 0.3s ease-in-out;
-    }
-
-    .mode-toggle:hover {
-      background: linear-gradient(45deg, #0284c7, #38bdf8);
-      transform: scale(1.1);
-      box-shadow: 0 0 20px rgba(0, 0, 255, 0.5);
-    }
-
-    /* Toast de notificação */
-    .toast {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: #22c55e;
-      color: #0f172a;
-      padding: 15px 20px;
-      border-radius: 10px;
-      font-weight: bold;
-      z-index: 50;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-      opacity: 0;
-      transform: translateX(100%);
-      transition: all 0.5s ease;
-    }
-
-    .toast.show {
-      opacity: 1;
-      transform: translateX(0);
-    }
-
-    /* Formulário e Tabela de Cadastro */
-    .form-input, .filter-input {
-      width: 100%;
-      padding: 12px;
-      margin-bottom: 15px;
-      border-radius: 10px;
-      border: none;
-      background: #1e293b;
-      color: #f1f5f9;
-    }
-
-    .form-input:focus, .filter-input:focus {
-      outline: none;
-      border: 2px solid #38bdf8;
-    }
-
-    .form-input[type="number"] {
-      -moz-appearance: textfield;
-    }
-
-    .form-input[type="number"]::-webkit-outer-spin-button,
-    .form-input[type="number"]::-webkit-inner-spin-button {
-      -webkit-appearance: none;
-      margin: 0;
-    }
-
-    button[type="submit"] {
-      padding: 12px 20px;
-      background: #38bdf8;
-      border-radius: 10px;
-      color: #0f172a;
-      font-weight: bold;
-      width: 100%;
-      cursor: pointer;
-      transition: background 0.3s;
-    }
-
-    button[type="submit"]:hover {
-      background: #0284c7;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-    }
-
-    th, td {
-      padding: 12px;
-      text-align: center;
-      border: 1px solid #f1f5f9;
-      border-radius: 8px;
-    }
-
-    th {
-      background: #38bdf8;
-      color: #0f172a;
-    }
-
-    td {
-      background: rgba(15, 23, 42, 0.7);
-      color: #f1f5f9;
-    }
-
-    td:hover {
-      background: rgba(15, 23, 42, 0.9);
-      cursor: pointer;
-    }
-
-    .chart-container {
-      margin: 30px auto;
-      max-width: 80%;
-      border-radius: 15px;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-      padding: 15px;
-      background: rgba(15, 23, 42, 0.8);
-    }
-
-  </style>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body>
-  <canvas id="planetCanvas"></canvas>
-
-  <!-- Tela de Login -->
-  <div class="login-container" id="loginScreen">
-    <div class="login-box">
-      <h2>Login</h2>
-      <input type="text" id="username" placeholder="Usuário" required>
-      <input type="password" id="password" placeholder="Senha" required>
-      <button onclick="login()">Entrar</button>
-    </div>
+<body class="bg-gray-100 text-gray-800">
+  <!-- LOGIN -->
+  <div id="loginScreen" class="flex items-center justify-center h-screen">
+    <form id="loginForm" class="bg-white p-6 rounded shadow-md w-80">
+      <h2 class="text-xl font-bold mb-4 text-center">Login</h2>
+      <input type="text" id="username" placeholder="Usuário" required class="w-full border p-2 mb-4 rounded" />
+      <input type="password" id="password" placeholder="Senha" required class="w-full border p-2 mb-4 rounded" />
+      <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Entrar</button>
+      <p id="loginError" class="text-red-500 text-sm mt-2 hidden">Usuário ou senha inválidos.</p>
+    </form>
   </div>
 
-  <!-- Sistema de Logística -->
-  <div id="logisticsSystem" style="display: none;">
-    <button class="mode-toggle" onclick="toggleMode()">Modo Claro</button>
-    <div class="toast" id="toast">Produto adicionado com sucesso!</div>
-    <div class="container">
-      <h1>Sistema de Logística Futurístico</h1>
-      <section>
-        <h2>Cadastro de Produtos</h2>
-        <form id="productForm">
-          <input type="text" id="productName" class="form-input" placeholder="Nome do Produto" required>
-          <input type="number" id="productQuantity" class="form-input" placeholder="Quantidade" min="1" required>
-          <input type="number" id="productPrice" class="form-input" placeholder="Preço (R$)" step="0.01" min="0" required>
-          <select id="productSupplier" class="form-input" required>
-            <option value="" disabled selected>Selecione o Fornecedor</option>
-            <option value="Fornecedor A">Fornecedor A</option>
-            <option value="Fornecedor B">Fornecedor B</option>
-            <option value="Fornecedor C">Fornecedor C</option>
-          </select>
-          <button type="submit">Adicionar Produto</button>
-        </form>
-      </section>
-      <section>
-        <h2>Estoque Atual</h2>
-        <input type="text" id="filterInput" class="filter-input" placeholder="Buscar Produto...">
-        <table>
-          <thead>
-            <tr>
-              <th>Produto</th>
-              <th>Fornecedor</th>
-              <th>Quantidade</th>
-              <th>Preço Unitário (R$)</th>
-              <th>Valor Total (R$)</th>
-            </tr>
-          </thead>
-          <tbody id="productTable"></tbody>
-        </table>
-      </section>
-      <section>
-        <h2>Resumo Gráfico</h2>
-        <div class="chart-container">
-          <canvas id="stockChart"></canvas>
-        </div>
-        <div class="chart-container">
-          <canvas id="valueChart"></canvas>
-        </div>
-        <div class="chart-container">
-          <canvas id="financeChart"></canvas>
-        </div>
-      </section>
+  <!-- APP -->
+  <div id="app" class="p-4 hidden">
+    <h1 class="text-2xl font-bold mb-4 text-center">Controle de Estoque</h1>
+    
+    <!-- Formulário -->
+    <form id="productForm" class="grid md:grid-cols-5 sm:grid-cols-2 gap-2 mb-4">
+      <input type="text" id="code" placeholder="Código" required class="border p-2 rounded" />
+      <input type="text" id="name" placeholder="Nome" required class="border p-2 rounded" />
+      <input type="number" id="quantity" placeholder="Qtd" required min="1" class="border p-2 rounded" />
+      <input type="number" id="price" placeholder="Preço" required min="0.01" step="0.01" class="border p-2 rounded" />
+      <input type="text" id="category" placeholder="Categoria" required class="border p-2 rounded" />
+      <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 col-span-full">Cadastrar</button>
+    </form>
+
+    <!-- Tabela -->
+    <div class="overflow-auto">
+      <table class="w-full bg-white rounded shadow-md">
+        <thead>
+          <tr class="bg-gray-200">
+            <th class="p-2">Código</th>
+            <th class="p-2">Nome</th>
+            <th class="p-2">Quantidade</th>
+            <th class="p-2">Preço</th>
+            <th class="p-2">Categoria</th>
+            <th class="p-2">Ação</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Gráfico -->
+    <div class="mt-6">
+      <canvas id="productChart" height="100"></canvas>
     </div>
   </div>
 
   <script>
-    // Alternar modo claro/escuro
-    function toggleMode() {
-      const body = document.body;
-      const container = document.querySelector('.container');
-      const button = document.querySelector('.mode-toggle');
-
-      body.classList.toggle('light-mode');
-      container.classList.toggle('light-mode');
-      button.textContent = body.classList.contains('light-mode') ? 'Modo Escuro' : 'Modo Claro';
-    }
-
-    // Função de login
-    function login() {
-      const username = document.getElementById('username').value;
-      const password = document.getElementById('password').value;
-
-      if (username === 'admin' && password === '1234') {
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('logisticsSystem').style.display = 'block';
-      } else {
-        alert('Usuário ou senha incorretos!');
-      }
-    }
-
-    // Função de adicionar produto
-    document.getElementById('productForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-
-      const productName = document.getElementById('productName').value;
-      const productQuantity = parseInt(document.getElementById('productQuantity').value);
-      const productPrice = parseFloat(document.getElementById('productPrice').value);
-      const productSupplier = document.getElementById('productSupplier').value;
-
-      const product = {
-        name: productName,
-        quantity: productQuantity,
-        price: productPrice,
-        supplier: productSupplier,
-        total: productQuantity * productPrice
-      };
-
-      addProductToTable(product);
-      saveProductToLocalStorage(product);
-      showToast();
-      updateCharts();
-    });
-
-    // Exibir produto na tabela
-    function addProductToTable(product) {
-      const tableBody = document.getElementById('productTable');
-      const row = document.createElement('tr');
-
-      row.innerHTML = `
-        <td>${product.name}</td>
-        <td>${product.supplier}</td>
-        <td>${product.quantity}</td>
-        <td>${product.price.toFixed(2)}</td>
-        <td>${product.total.toFixed(2)}</td>
-      `;
-
-      tableBody.appendChild(row);
-    }
-
-    // Armazenar produto no LocalStorage
-    function saveProductToLocalStorage(product) {
-      const products = JSON.parse(localStorage.getItem('products')) || [];
-      products.push(product);
+    const saveToStorage = (products) => {
       localStorage.setItem('products', JSON.stringify(products));
-    }
+    };
 
-    // Exibir Toast
-    function showToast() {
-      const toast = document.getElementById('toast');
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 3000);
-    }
+    const loadFromStorage = () => {
+      const data = localStorage.getItem('products');
+      return data ? JSON.parse(data) : [];
+    };
 
-    // Atualizar gráficos
-    function updateCharts() {
-      const products = JSON.parse(localStorage.getItem('products')) || [];
-      const productNames = products.map(p => p.name);
-      const productQuantities = products.map(p => p.quantity);
-      const productValues = products.map(p => p.total);
+    let products = loadFromStorage();
 
-      // Atualizar gráfico de estoque
-      stockChart.data.labels = productNames;
-      stockChart.data.datasets[0].data = productQuantities;
-      stockChart.update();
+    const renderProducts = () => {
+      const tbody = document.querySelector("tbody");
+      tbody.innerHTML = "";
+      products.forEach((product, index) => {
+        const row = `<tr>
+          <td class="p-2 text-center">${product.code}</td>
+          <td class="p-2 text-center">${product.name}</td>
+          <td class="p-2 text-center">${product.quantity}</td>
+          <td class="p-2 text-center">R$ ${parseFloat(product.price).toFixed(2)}</td>
+          <td class="p-2 text-center">${product.category}</td>
+          <td class="p-2 text-center">
+            <button class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded delete-btn" data-index="${index}">Excluir</button>
+          </td>
+        </tr>`;
+        tbody.innerHTML += row;
+      });
+      updateChart();
+    };
 
-      // Atualizar gráfico de valores
-      valueChart.data.labels = productNames;
-      valueChart.data.datasets[0].data = productValues;
-      valueChart.update();
-    }
+    const updateChart = () => {
+      const ctx = document.getElementById("productChart").getContext("2d");
+      const categories = [...new Set(products.map(p => p.category))];
+      const totals = categories.map(cat =>
+        products.filter(p => p.category === cat).reduce((sum, p) => sum + parseInt(p.quantity), 0)
+      );
 
-    // Iniciar gráfico
-    const stockChart = new Chart(document.getElementById('stockChart').getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels: [],
-        datasets: [{
-          label: 'Quantidade',
-          data: [],
-          backgroundColor: '#38bdf8',
-          borderColor: '#0284c7',
-          borderWidth: 1
-        }]
+      if (window.myChart) window.myChart.destroy();
+      window.myChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: categories,
+          datasets: [{
+            label: 'Quantidade por Categoria',
+            data: totals,
+            backgroundColor: '#3B82F6'
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } }
+        }
+      });
+    };
+
+    document.getElementById("productForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      const code = document.getElementById("code").value.trim();
+      const name = document.getElementById("name").value.trim();
+      const quantity = parseInt(document.getElementById("quantity").value);
+      const price = parseFloat(document.getElementById("price").value);
+      const category = document.getElementById("category").value.trim();
+
+      if (!code || !name || isNaN(quantity) || isNaN(price) || !category || quantity <= 0 || price <= 0) {
+        alert("Preencha todos os campos corretamente.");
+        return;
+      }
+
+      products.push({ code, name, quantity, price, category });
+      saveToStorage(products);
+      renderProducts();
+      this.reset();
+    });
+
+    document.querySelector("tbody").addEventListener("click", function (e) {
+      if (e.target.classList.contains("delete-btn")) {
+        const index = e.target.getAttribute("data-index");
+        products.splice(index, 1);
+        saveToStorage(products);
+        renderProducts();
       }
     });
 
-    const valueChart = new Chart(document.getElementById('valueChart').getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels: [],
-        datasets: [{
-          label: 'Valor Total (R$)',
-          data: [],
-          backgroundColor: '#38bdf8',
-          borderColor: '#0284c7',
-          borderWidth: 1
-        }]
+    // Sistema de login simples e mais seguro (simulado)
+    const loginForm = document.getElementById("loginForm");
+    loginForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+
+      const validUser = "admin";
+      const validHash = btoa("1234"); // Senha simulada (criptografada base64)
+
+      if (username === validUser && btoa(password) === validHash) {
+        document.getElementById("loginScreen").classList.add("hidden");
+        document.getElementById("app").classList.remove("hidden");
+        renderProducts();
+      } else {
+        document.getElementById("loginError").classList.remove("hidden");
       }
-    });
-
-    const financeChart = new Chart(document.getElementById('financeChart').getContext('2d'), {
-      type: 'pie',
-      data: {
-        labels: ['Receitas', 'Despesas'],
-        datasets: [{
-          data: [10000, 2000],
-          backgroundColor: ['#38bdf8', '#f87171'],
-          borderWidth: 1
-        }]
-      }
-    });
-
-    // Planeta 3D girando com Three.js
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('planetCanvas') });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    camera.position.z = 50;
-
-    const sphere = new THREE.Mesh(
-      new THREE.SphereGeometry(20, 64, 64),
-      new THREE.MeshStandardMaterial({ color: '#38bdf8', wireframe: true, emissive: '#0284c7' })
-    );
-    scene.add(sphere);
-
-    const light = new THREE.PointLight('#ffffff', 1);
-    light.position.set(50, 50, 50);
-    scene.add(light);
-
-    function animate() {
-      requestAnimationFrame(animate);
-      sphere.rotation.y += 0.002;
-      renderer.render(scene, camera);
-    }
-    animate();
-
-    window.addEventListener('resize', () => {
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
     });
   </script>
 </body>
