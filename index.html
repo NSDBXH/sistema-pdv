@@ -1,163 +1,438 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sistema de Estoque</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Ponto10 — Sistema Simples (Acode)</title>
+<style>
+  :root{
+    --bg:#0f1724; --card:#0b1220; --muted:#9aa4b2; --accent:#06b6d4; --accent-2:#7c3aed;
+    --success:#10b981; --danger:#ef4444; --glass: rgba(255,255,255,0.04);
+  }
+  *{box-sizing:border-box;font-family:Inter, system-ui, Arial, sans-serif}
+  html,body{height:100%;margin:0;background:linear-gradient(180deg,#071026 0%, #081226 100%);color:#e6eef6}
+  .app{max-width:1100px;margin:18px auto;padding:18px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;font-weight:700;color:white;font-size:18px}
+  h1{margin:0;font-size:20px}
+  .top-right{display:flex;gap:10px;align-items:center}
+  .saldo{background:var(--card);padding:10px 14px;border-radius:10px;min-width:220px;text-align:right}
+  .saldo small{display:block;color:var(--muted);font-size:12px}
+  .saldo strong{display:block;font-size:18px;margin-top:4px}
+  .btn{background:var(--accent);padding:8px 12px;border-radius:8px;color:#012;cursor:pointer;border:none;font-weight:600}
+  .btn.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+  .layout{display:grid;grid-template-columns:1fr 360px;gap:18px;margin-top:18px}
+  .card{background:var(--card);padding:14px;border-radius:12px;box-shadow:0 6px 18px rgba(4,8,16,0.6)}
+  nav .tabs{display:flex;gap:8px;flex-wrap:wrap}
+  .tab{padding:8px 12px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.03);cursor:pointer;color:var(--muted)}
+  .tab.active{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#021022;border:none}
+  table{width:100%;border-collapse:collapse;color:#dbeafe}
+  th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.02);text-align:left;font-size:13px}
+  .muted{color:var(--muted);font-size:13px}
+  .input,textarea,select{width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit}
+  .row{display:flex;gap:8px}
+  .col{flex:1}
+  .small{font-size:12px;color:var(--muted)}
+  .badge{display:inline-block;padding:6px 8px;border-radius:999px;background:var(--glass);font-size:12px;color:var(--muted)}
+  .danger{color:var(--danger);font-weight:700}
+  .success{color:var(--success);font-weight:700}
+  footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
+  .actions{display:flex;gap:8px;flex-wrap:wrap}
+  .flex{display:flex;align-items:center;gap:8px}
+  /* forms layout */
+  form .group{margin-bottom:10px}
+  .list-scroll{max-height:420px;overflow:auto;padding-right:6px}
+  .mini{font-size:12px;color:var(--muted)}
+  .danger-btn{background:var(--danger);color:white;padding:6px 8px;border-radius:8px;border:none;cursor:pointer}
+  .ok{background:var(--success);color:#012;padding:6px 8px;border-radius:8px;border:none;cursor:pointer}
+  .topbar-actions{display:flex;gap:8px;align-items:center}
+  /* login */
+  .screen{min-height:80vh;display:flex;align-items:center;justify-content:center}
+  .login-card{width:440px;padding:20px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px}
+  label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+  .tiny{font-size:12px;color:var(--muted)}
+  .danger.small{font-size:12px}
+  .flex-between{display:flex;justify-content:space-between;align-items:center}
+  .controls{display:flex;gap:8px}
+  .muted-2{color:#9fb0c5}
+  /* responsive */
+  @media (max-width:980px){
+    .layout{grid-template-columns:1fr}
+    .top-right{flex-direction:column;align-items:flex-end}
+  }
+</style>
 </head>
-<body class="bg-gray-100 text-gray-800">
-  <!-- LOGIN -->
-  <div id="loginScreen" class="flex items-center justify-center h-screen">
-    <form id="loginForm" class="bg-white p-6 rounded shadow-md w-80">
-      <h2 class="text-xl font-bold mb-4 text-center">Login</h2>
-      <input type="text" id="username" placeholder="Usuário" required class="w-full border p-2 mb-4 rounded" />
-      <input type="password" id="password" placeholder="Senha" required class="w-full border p-2 mb-4 rounded" />
-      <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Entrar</button>
-      <p id="loginError" class="text-red-500 text-sm mt-2 hidden">Usuário ou senha inválidos.</p>
-    </form>
-  </div>
-
-  <!-- APP -->
-  <div id="app" class="p-4 hidden">
-    <h1 class="text-2xl font-bold mb-4 text-center">Controle de Estoque</h1>
-    
-    <!-- Formulário -->
-    <form id="productForm" class="grid md:grid-cols-5 sm:grid-cols-2 gap-2 mb-4">
-      <input type="text" id="code" placeholder="Código" required class="border p-2 rounded" />
-      <input type="text" id="name" placeholder="Nome" required class="border p-2 rounded" />
-      <input type="number" id="quantity" placeholder="Qtd" required min="1" class="border p-2 rounded" />
-      <input type="number" id="price" placeholder="Preço" required min="0.01" step="0.01" class="border p-2 rounded" />
-      <input type="text" id="category" placeholder="Categoria" required class="border p-2 rounded" />
-      <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 col-span-full">Cadastrar</button>
-    </form>
-
-    <!-- Tabela -->
-    <div class="overflow-auto">
-      <table class="w-full bg-white rounded shadow-md">
-        <thead>
-          <tr class="bg-gray-200">
-            <th class="p-2">Código</th>
-            <th class="p-2">Nome</th>
-            <th class="p-2">Quantidade</th>
-            <th class="p-2">Preço</th>
-            <th class="p-2">Categoria</th>
-            <th class="p-2">Ação</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+<body>
+<div class="app" id="app">
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="logo">P10</div>
+      <div>
+        <h1>Ponto 10 — Gestão de Estoque</h1>
+        <div class="tiny">Variedades & Estilo — Sistema local (Acode)</div>
+      </div>
     </div>
 
-    <!-- Gráfico -->
-    <div class="mt-6">
-      <canvas id="productChart" height="100"></canvas>
+    <div class="top-right">
+      <div class="saldo card" title="Saldo financeiro atual">
+        <small>Saldo financeiro</small>
+        <strong id="saldoValor">R$ 0,00</strong>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn" id="btnNewProduct">+ Produto</button>
+        <button class="btn secondary" id="btnExport">Backup</button>
+        <button class="btn secondary" id="btnImport">Restaurar</button>
+      </div>
     </div>
+  </header>
+
+  <div class="layout">
+    <!-- Left main -->
+    <div>
+      <!-- Navigation tabs -->
+      <div class="card">
+        <nav>
+          <div class="tabs" id="tabs">
+            <button class="tab active" data-view="dashboard">Dashboard</button>
+            <button class="tab" data-view="products">Produtos</button>
+            <button class="tab" data-view="movements">Movimentações</button>
+            <button class="tab" data-view="sales">Vendas</button>
+            <button class="tab" data-view="customers">Clientes</button>
+            <button class="tab" data-view="users">Usuários</button>
+            <button class="tab" data-view="audit">Logs</button>
+          </div>
+        </nav>
+      </div>
+
+      <!-- Views -->
+      <div style="margin-top:12px">
+        <!-- Dashboard -->
+        <div class="card" id="view-dashboard">
+          <h3>Dashboard</h3>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px">
+            <div style="flex:1;min-width:220px" class="card" id="kpiInventory">
+              <div class="small">Valor total em estoque</div>
+              <div style="margin-top:6px;font-size:18px" id="valorEstoque">R$ 0,00</div>
+              <div class="tiny" style="margin-top:8px">Produtos cadastrados: <span id="countProdutos">0</span></div>
+            </div>
+            <div style="flex:1;min-width:220px" class="card" id="kpiCritical">
+              <div class="small">Produtos com estoque crítico</div>
+              <div style="margin-top:6px" id="countCriticos">0</div>
+              <div class="tiny" style="margin-top:8px">Itens com estoque &le; mínimo</div>
+            </div>
+            <div style="flex:1;min-width:220px" class="card" id="kpiRecent">
+              <div class="small">Movimentações recentes</div>
+              <div style="margin-top:8px" id="recentList"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Products -->
+        <div class="card" id="view-products" style="display:none">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <h3>Produtos</h3>
+            <div class="muted small">Adicione SKU, preços e estoque mínimo</div>
+          </div>
+          <div style="margin-top:12px">
+            <div class="row" style="margin-bottom:8px">
+              <input class="input col" placeholder="Buscar por nome ou SKU" id="searchProduct"/>
+              <select id="filterCategory" class="input" style="max-width:180px"><option value="">Todos</option></select>
+            </div>
+            <div class="list-scroll card" id="productsList"></div>
+          </div>
+        </div>
+
+        <!-- Movements -->
+        <div class="card" id="view-movements" style="display:none">
+          <h3>Movimentações de Estoque</h3>
+          <form id="formMovement" style="margin-top:10px">
+            <div class="row">
+              <select id="mv_product" class="input col"></select>
+              <select id="mv_type" class="input" style="max-width:140px">
+                <option value="IN">Entrada (IN)</option>
+                <option value="OUT">Saída (OUT)</option>
+                <option value="RETURN">Devolução</option>
+                <option value="LOSS">Perda</option>
+              </select>
+              <input type="number" id="mv_qty" class="input" placeholder="Quantidade" style="max-width:120px" min="1" value="1"/>
+            </div>
+            <div class="row" style="margin-top:8px">
+              <input id="mv_reference" class="input col" placeholder="Referência (ex: NF, venda)"/>
+              <input id="mv_user" class="input" placeholder="Registrado por (usuário)" style="max-width:220px"/>
+            </div>
+            <div class="group"><textarea id="mv_note" class="input" placeholder="Observação (opcional)" rows="2"></textarea></div>
+            <div class="row">
+              <button class="btn" type="submit">Registrar Movimentação</button>
+              <button type="button" class="btn secondary" id="btnClearMov">Limpar</button>
+            </div>
+          </form>
+
+          <div style="margin-top:12px">
+            <h4>Histórico</h4>
+            <div class="list-scroll card" id="movementsList" style="max-height:260px"></div>
+          </div>
+        </div>
+
+        <!-- Sales -->
+        <div class="card" id="view-sales" style="display:none">
+          <h3>Registrar Venda</h3>
+          <form id="formSale" style="margin-top:10px">
+            <div class="row">
+              <select id="sale_product" class="input col"></select>
+              <input id="sale_qty" class="input" type="number" min="1" value="1" style="max-width:120px"/>
+              <input id="sale_price" class="input" placeholder="Preço unitário (R$)" style="max-width:180px"/>
+            </div>
+            <div class="row" style="margin-top:8px">
+              <input id="sale_customer" class="input col" placeholder="Cliente (nome / CPF/CNPJ)"/>
+              <input id="sale_user" class="input" placeholder="Atendido por (usuário)" style="max-width:220px"/>
+            </div>
+            <div class="group"><textarea id="sale_note" class="input" placeholder="Observação da venda" rows="2"></textarea></div>
+            <div class="row">
+              <button class="btn" type="submit">Registrar Venda</button>
+              <button type="button" class="btn secondary" id="btnQuickSale">Venda Rápida (usar preço do produto)</button>
+            </div>
+          </form>
+
+          <div style="margin-top:12px">
+            <h4>Vendas recentes</h4>
+            <div class="list-scroll card" id="salesList" style="max-height:260px"></div>
+          </div>
+        </div>
+
+        <!-- Customers -->
+        <div class="card" id="view-customers" style="display:none">
+          <h3>Clientes</h3>
+          <form id="formCustomer" style="margin-top:10px">
+            <div class="row">
+              <input id="cust_name" class="input col" placeholder="Nome"/>
+              <input id="cust_cpf" class="input" placeholder="CPF / CNPJ" style="max-width:200px"/>
+            </div>
+            <div class="row" style="margin-top:8px">
+              <input id="cust_phone" class="input" placeholder="Telefone" />
+              <input id="cust_email" class="input" placeholder="E-mail" />
+            </div>
+            <div style="margin-top:8px">
+              <button class="btn" type="submit">Salvar Cliente</button>
+            </div>
+          </form>
+
+          <div style="margin-top:12px">
+            <div class="list-scroll card" id="customersList" style="max-height:300px"></div>
+          </div>
+        </div>
+
+        <!-- Users -->
+        <div class="card" id="view-users" style="display:none">
+          <h3>Usuários (Dono & Vendedores)</h3>
+          <form id="formUser" style="margin-top:10px">
+            <div class="row">
+              <input id="usr_name" class="input col" placeholder="Nome"/>
+              <input id="usr_email" class="input" placeholder="E-mail" style="max-width:220px"/>
+            </div>
+            <div class="row" style="margin-top:8px">
+              <input id="usr_password" class="input" placeholder="Senha (mín 6 chars)" style="max-width:220px"/>
+              <select id="usr_role" class="input" style="max-width:160px"><option value="seller">Vendedor</option><option value="owner">Dono</option></select>
+            </div>
+            <div style="margin-top:8px">
+              <button class="btn" type="submit">Criar Usuário</button>
+            </div>
+          </form>
+
+          <div style="margin-top:12px">
+            <div class="list-scroll card" id="usersList" style="max-height:300px"></div>
+          </div>
+        </div>
+
+        <!-- Audit -->
+        <div class="card" id="view-audit" style="display:none">
+          <h3>Logs de Auditoria</h3>
+          <div class="list-scroll card" id="auditList" style="max-height:400px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right sidebar -->
+    <aside>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div class="small">Logado como</div>
+            <strong id="loggedName">—</strong>
+            <div class="muted small" id="loggedRole"></div>
+          </div>
+          <div>
+            <button class="btn secondary" id="btnLogout">Sair</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h4>Ações rápidas</h4>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+          <button class="btn" id="openNewProduct">+ Novo Produto</button>
+          <button class="btn secondary" id="openMovements">+ Movimentação</button>
+          <button class="btn secondary" id="openSale">+ Venda</button>
+          <button class="btn secondary" id="btnClearAll">Limpar dados (reset)</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h4>Sobre</h4>
+        <div class="tiny">Sistema local para teste — Ponto 10</div>
+        <div style="margin-top:8px" class="muted small">Owner: Esther Silva</div>
+      </div>
+    </aside>
   </div>
 
-  <script>
-    const saveToStorage = (products) => {
-      localStorage.setItem('products', JSON.stringify(products));
-    };
+  <footer>Desenvolvido para teste. Use o backup/export antes de limpar dados.</footer>
+</div>
 
-    const loadFromStorage = () => {
-      const data = localStorage.getItem('products');
-      return data ? JSON.parse(data) : [];
-    };
+<!-- Login screen (modal-like) -->
+<div id="loginScreen" class="screen" style="position:fixed;inset:0;background:linear-gradient(180deg,rgba(2,6,23,0.9),rgba(3,7,18,0.98));z-index:9999">
+  <div class="login-card">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <h2 style="margin:0">Entrar — Ponto 10</h2>
+        <div class="tiny" style="margin-top:6px">Dono: <strong>Esther Silva</strong> — senha inicial <span class="badge">esther123</span></div>
+      </div>
+      <div style="text-align:right">
+        <div class="muted small">Offline • localStorage</div>
+      </div>
+    </div>
 
-    let products = loadFromStorage();
+    <form id="loginForm" style="margin-top:12px">
+      <div class="group">
+        <label>Usuário (e-mail ou nome)</label>
+        <input id="loginUser" class="input" placeholder="ex: owner@ponto10.com ou Esther"/>
+      </div>
+      <div class="group">
+        <label>Senha</label>
+        <input id="loginPass" class="input" type="password" placeholder="senha"/>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" type="submit">Entrar</button>
+        <button type="button" class="btn secondary" id="btnInitDemo">Usar modo Demo</button>
+      </div>
+      <div id="loginMsg" class="tiny danger" style="margin-top:10px;display:none"></div>
+    </form>
 
-    const renderProducts = () => {
-      const tbody = document.querySelector("tbody");
-      tbody.innerHTML = "";
-      products.forEach((product, index) => {
-        const row = `<tr>
-          <td class="p-2 text-center">${product.code}</td>
-          <td class="p-2 text-center">${product.name}</td>
-          <td class="p-2 text-center">${product.quantity}</td>
-          <td class="p-2 text-center">R$ ${parseFloat(product.price).toFixed(2)}</td>
-          <td class="p-2 text-center">${product.category}</td>
-          <td class="p-2 text-center">
-            <button class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded delete-btn" data-index="${index}">Excluir</button>
-          </td>
-        </tr>`;
-        tbody.innerHTML += row;
-      });
-      updateChart();
-    };
+    <div style="margin-top:12px" class="muted small">Dica: após entrar, crie um novo usuário dono e mude a senha.</div>
+  </div>
+</div>
 
-    const updateChart = () => {
-      const ctx = document.getElementById("productChart").getContext("2d");
-      const categories = [...new Set(products.map(p => p.category))];
-      const totals = categories.map(cat =>
-        products.filter(p => p.category === cat).reduce((sum, p) => sum + parseInt(p.quantity), 0)
-      );
+<script>
+/*
+  Ponto10 - Single file app
+  - Storage keys: p10_users, p10_products, p10_movements, p10_sales, p10_customers, p10_audit
+  - Owner pre-created: name "Esther Silva", email owner@ponto10.local, password "esther123"
+*/
 
-      if (window.myChart) window.myChart.destroy();
-      window.myChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: categories,
-          datasets: [{
-            label: 'Quantidade por Categoria',
-            data: totals,
-            backgroundColor: '#3B82F6'
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } }
-        }
-      });
-    };
+// ---------- Utilities ----------
+const $ = sel => document.querySelector(sel);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
+const money = v => {
+  const n = Number(v||0);
+  return 'R$ ' + n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+};
+const uid = () => 'id-' + Math.random().toString(36).slice(2,9);
+const now = () => new Date().toISOString();
+const storage = {
+  load(key){ try { return JSON.parse(localStorage.getItem(key)||'null'); } catch(e){ return null; } },
+  save(key,val){ localStorage.setItem(key, JSON.stringify(val)); }
+};
 
-    document.getElementById("productForm").addEventListener("submit", function (e) {
-      e.preventDefault();
-      const code = document.getElementById("code").value.trim();
-      const name = document.getElementById("name").value.trim();
-      const quantity = parseInt(document.getElementById("quantity").value);
-      const price = parseFloat(document.getElementById("price").value);
-      const category = document.getElementById("category").value.trim();
+// ---------- Default data init ----------
+function ensureInitialData(){
+  if(!storage.load('p10_users')){
+    // owner Esther Silva
+    const owner = { id: uid(), name: 'Esther Silva', email: 'owner@ponto10.local', password: 'esther123', role: 'owner', created_at: now() };
+    // note: for this local app, password is stored plain (acceptable for offline test). You can change later.
+    storage.save('p10_users', [owner]);
+  }
+  if(!storage.load('p10_products')) storage.save('p10_products', []);
+  if(!storage.load('p10_movements')) storage.save('p10_movements', []);
+  if(!storage.load('p10_sales')) storage.save('p10_sales', []);
+  if(!storage.load('p10_customers')) storage.save('p10_customers', []);
+  if(!storage.load('p10_audit')) storage.save('p10_audit', []);
+}
+ensureInitialData();
 
-      if (!code || !name || isNaN(quantity) || isNaN(price) || !category || quantity <= 0 || price <= 0) {
-        alert("Preencha todos os campos corretamente.");
-        return;
-      }
+// ---------- Auth ----------
+let currentUser = null;
+function login(userOrEmail, password){
+  const users = storage.load('p10_users') || [];
+  const u = users.find(x => x.email === userOrEmail || x.name === userOrEmail);
+  if(!u) return { ok:false, msg:'Usuário não encontrado' };
+  if(u.password !== password) return { ok:false, msg:'Senha incorreta' };
+  currentUser = u;
+  addAudit('auth','login',{user:u.name});
+  return { ok:true, user:u };
+}
 
-      products.push({ code, name, quantity, price, category });
-      saveToStorage(products);
-      renderProducts();
-      this.reset();
-    });
+// Demo mode: logs in as owner automatically
+function loginDemo(){
+  const users = storage.load('p10_users');
+  const owner = users.find(u => u.role === 'owner') || users[0];
+  currentUser = owner;
+  addAudit('auth','demo_login',{user:owner.name});
+}
 
-    document.querySelector("tbody").addEventListener("click", function (e) {
-      if (e.target.classList.contains("delete-btn")) {
-        const index = e.target.getAttribute("data-index");
-        products.splice(index, 1);
-        saveToStorage(products);
-        renderProducts();
-      }
-    });
+// Logout
+function logout(){
+  addAudit('auth','logout',{user: currentUser?.name});
+  currentUser = null;
+  showLogin(true);
+}
 
-    // Sistema de login simples e mais seguro (simulado)
-    const loginForm = document.getElementById("loginForm");
-    loginForm.addEventListener("submit", function (e) {
-      e.preventDefault();
-      const username = document.getElementById("username").value;
-      const password = document.getElementById("password").value;
+// ---------- Audit ----------
+function addAudit(entity, action, payload){
+  const logs = storage.load('p10_audit') || [];
+  logs.unshift({ id: uid(), entity, action, payload, user: currentUser?.name || 'system', at: now() });
+  storage.save('p10_audit', logs.slice(0,2000)); // keep recent
+  renderAudit();
+}
 
-      const validUser = "admin";
-      const validHash = btoa("1234"); // Senha simulada (criptografada base64)
+// ---------- Products ----------
+function createProduct(data){
+  const list = storage.load('p10_products') || [];
+  if(!data.sku) data.sku = 'SKU-' + Math.random().toString(36).slice(2,7).toUpperCase();
+  const p = { id: uid(), sku: data.sku, name: data.name, description: data.description||'', cost_price: Number(data.cost_price||0), sale_price: Number(data.sale_price||0), unit: data.unit||'un', stock: Number(data.stock||0), stock_min: Number(data.stock_min||0), created_at: now() };
+  list.push(p);
+  storage.save('p10_products', list);
+  addAudit('product','create',p);
+  renderProducts();
+  renderSelects();
+  renderDashboard();
+  return p;
+}
+function updateProduct(id, fields){
+  const list = storage.load('p10_products') || [];
+  const p = list.find(x => x.id === id);
+  if(!p) return null;
+  Object.assign(p, fields);
+  storage.save('p10_products', list);
+  addAudit('product','update',{id,fields});
+  renderProducts(); renderSelects(); renderDashboard();
+  return p;
+}
+function deleteProduct(id){
+  let list = storage.load('p10_products') || [];
+  list = list.filter(x => x.id !== id);
+  storage.save('p10_products', list);
+  addAudit('product','delete',{id});
+  renderProducts(); renderSelects(); renderDashboard();
+}
 
-      if (username === validUser && btoa(password) === validHash) {
-        document.getElementById("loginScreen").classList.add("hidden");
-        document.getElementById("app").classList.remove("hidden");
-        renderProducts();
-      } else {
-        document.getElementById("loginError").classList.remove("hidden");
-      }
-    });
-  </script>
-</body>
-</html>
+// ---------- Movements ----------
+function createMovement({product_id,type,quantity,reference,note,user_id}){
+  const products = storage.load('p10_products') || [];
+  const p = products.find(x => x.id === product_id);
+  if(!p) throw new Error('Produto não encontrado');
+  const q = Number(quantity);
+  if(q <= 0) throw new Error('Quantidade inválida');
+  if(type === 'OUT' && p.stock < q) throw new Error('Estoque insuficiente');
+  // movement
+  const mov = { id: uid(), product_id, type, quantity: q, reference: reference||null, note: note||null, user_id: user_id||currentUser?.name, at: now() };
+  const movements = storage.load
