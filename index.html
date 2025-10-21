@@ -373,7 +373,7 @@ function login(userOrEmail, password){
 
 // Demo mode: logs in as owner automatically
 function loginDemo(){
-  const users = storage.load('p10_users');
+  const users = storage.load('p10_users') || [];
   const owner = users.find(u => u.role === 'owner') || users[0];
   currentUser = owner;
   addAudit('auth','demo_login',{user:owner.name});
@@ -435,4 +435,427 @@ function createMovement({product_id,type,quantity,reference,note,user_id}){
   if(type === 'OUT' && p.stock < q) throw new Error('Estoque insuficiente');
   // movement
   const mov = { id: uid(), product_id, type, quantity: q, reference: reference||null, note: note||null, user_id: user_id||currentUser?.name, at: now() };
-  const movements = storage.load
+  const movements = storage.load('p10_movements') || [];
+  movements.unshift(mov);
+  storage.save('p10_movements', movements.slice(0,5000));
+  // update product stock
+  if(type === 'IN' || type === 'RETURN') p.stock = p.stock + q;
+  else if(type === 'OUT' || type === 'LOSS') p.stock = p.stock - q;
+  // persist product list
+  storage.save('p10_products', products);
+  addAudit('stock','movement',mov);
+  renderProducts(); renderMovements(); renderDashboard(); renderSelects();
+  return mov;
+}
+
+// ---------- Sales ----------
+function createSale({customer, items, observation, user}){
+  // items: [{product_id, qty, unit_price}]
+  const products = storage.load('p10_products') || [];
+  const sales = storage.load('p10_sales') || [];
+  let total = 0;
+  // validate stock and compute
+  for(const it of items){
+    const p = products.find(x => x.id === it.product_id);
+    if(!p) throw new Error('Produto não encontrado: ' + it.product_id);
+    if(p.stock < it.qty) throw new Error('Estoque insuficiente: ' + p.name);
+    total += it.qty * Number(it.unit_price || p.sale_price || 0);
+  }
+  const sale = { id: uid(), customer: customer || null, items, total_amount: total, observation: observation || null, user: user || currentUser?.name, at: now() };
+  sales.unshift(sale);
+  storage.save('p10_sales', sales.slice(0,2000));
+  // deduct stock & register movements
+  for(const it of items){
+    const p = products.find(x => x.id === it.product_id);
+    p.stock -= it.qty;
+    // movement record
+    const mov = { id: uid(), product_id: p.id, type: 'OUT', quantity: it.qty, reference: 'SALE-'+sale.id, note: 'Venda', user_id: sale.user, at: now() };
+    const movements = storage.load('p10_movements') || [];
+    movements.unshift(mov);
+    storage.save('p10_movements', movements.slice(0,5000));
+  }
+  storage.save('p10_products', products);
+  // update financial balance
+  const bal = Number(storage.load('p10_balance') || 0) + total;
+  storage.save('p10_balance', bal);
+  addAudit('sales','create',sale);
+  renderSales(); renderProducts(); renderMovements(); renderDashboard(); renderSelects();
+  return sale;
+}
+
+// ---------- Users ----------
+function createUser({name,email,password,role}){
+  const list = storage.load('p10_users') || [];
+  if(!email || !password) throw new Error('email e senha obrigatórios');
+  if(list.find(u => u.email === email)) throw new Error('E-mail já cadastrado');
+  const u = { id: uid(), name, email, password, role: role || 'seller', created_at: now() };
+  list.push(u);
+  storage.save('p10_users', list);
+  addAudit('users','create',{id:u.id,name:u.name,role:u.role});
+  renderUsers();
+  return u;
+}
+function listUsers(){ return storage.load('p10_users') || []; }
+
+// ---------- Customers ----------
+function createCustomer({name,cpf,phone,email}){
+  const list = storage.load('p10_customers') || [];
+  const c = { id: uid(), name, cpf_cnpj: cpf||null, phone: phone||null, email: email||null, created_at: now() };
+  list.push(c); storage.save('p10_customers', list);
+  addAudit('customers','create',c); renderCustomers();
+  return c;
+}
+
+// ---------- Rendering ----------
+function showLogin(show){
+  const elLogin = $('#loginScreen');
+  if(show){ elLogin.style.display='flex'; } else { elLogin.style.display='none'; initAfterLogin(); }
+}
+
+function initAfterLogin(){
+  $('#loggedName').textContent = currentUser?.name || '—';
+  $('#loggedRole').textContent = (currentUser?.role || '').toUpperCase();
+  $('#saldoValor').textContent = money(storage.load('p10_balance') || 0);
+  renderDashboard(); renderProducts(); renderMovements(); renderSales(); renderCustomers(); renderUsers(); renderAudit();
+  renderSelects();
+}
+
+// Tabs
+$$('.tab').forEach(t => t.addEventListener('click', e=>{
+  $$('.tab').forEach(x => x.classList.remove('active'));
+  t.classList.add('active');
+  const view = t.dataset.view;
+  $$('#view-dashboard, #view-products, #view-movements, #view-sales, #view-customers, #view-users, #view-audit')
+    .forEach(v => v.style.display = 'none');
+  const el = $('#view-' + view);
+  if(el) el.style.display = 'block';
+}));
+
+// Products list render
+function renderProducts(){
+  const list = storage.load('p10_products') || [];
+  const q = ($('#searchProduct') && $('#searchProduct').value.trim().toLowerCase()) || '';
+  const html = list.filter(p => !q || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q))
+    .map(p => `
+      <div style="padding:10px;border-bottom:1px solid rgba(255,255,255,0.02);display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <div class="badge">${p.sku}</div>
+            <strong>${p.name}</strong>
+            <div class="tiny muted" style="margin-left:8px">${p.unit}</div>
+          </div>
+          <div class="muted small" style="margin-top:6px">${p.description || ''}</div>
+          <div class="tiny" style="margin-top:6px">Estoque: <strong>${p.stock}</strong> • Preço: <strong>${money(p.sale_price)}</strong> • Custo: ${money(p.cost_price)}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+          <div style="display:flex;gap:6px">
+            <button class="btn secondary" data-edit="${p.id}">Editar</button>
+            <button class="danger-btn" data-del="${p.id}">Excluir</button>
+          </div>
+          <div class="tiny ${p.stock <= p.stock_min ? 'danger' : 'muted'}">${p.stock <= p.stock_min ? 'Crítico' : 'OK'}</div>
+        </div>
+      </div>
+    `).join('') || '<div class="muted small">Nenhum produto cadastrado</div>';
+  $('#productsList').innerHTML = html;
+  // bind
+  $$('#productsList [data-edit]').forEach(btn => btn.onclick = () => openEditProduct(btn.dataset.edit));
+  $$('#productsList [data-del]').forEach(btn => {
+    btn.onclick = () => {
+      if(!confirm('Excluir produto? Isso removerá o item permanentemente.')) return;
+      deleteProduct(btn.dataset.del);
+    }
+  });
+  $('#countProdutos').textContent = list.length;
+}
+
+// Movements render
+function renderMovements(){
+  const movements = storage.load('p10_movements') || [];
+  const products = storage.load('p10_products') || [];
+  const html = movements.map(m => {
+    const prod = products.find(p => p.id === m.product_id);
+    return `<div style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.02)"><div style="display:flex;justify-content:space-between">
+      <div><strong>${prod ? prod.name : '—'}</strong> <span class="tiny muted">${m.user_id || ''}</span></div>
+      <div class="tiny">${new Date(m.at).toLocaleString()}</div>
+    </div>
+    <div class="tiny muted">${m.type} • Qtd: ${m.quantity} • Ref: ${m.reference || '-'} • ${m.note || ''}</div></div>`;
+  }).join('') || '<div class="muted small">Sem movimentações</div>';
+  $('#movementsList').innerHTML = html;
+  // recent
+  const recent = (movements.slice(0,6) || []).map(m => {
+    const prod = products.find(p => p.id === m.product_id);
+    return `<div class="mini">${m.type} • ${prod ? prod.name : '—'} • ${m.quantity} • <span class="tiny muted">${new Date(m.at).toLocaleString()}</span></div>`;
+  }).join('');
+  $('#recentList').innerHTML = recent || '<div class="muted small">Sem movimentos</div>';
+}
+
+// Sales render
+function renderSales(){
+  const sales = storage.load('p10_sales') || [];
+  const products = storage.load('p10_products') || [];
+  const html = sales.map(s => {
+    return `<div style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.02)"><div style="display:flex;justify-content:space-between">
+      <div><strong>R$ ${Number(s.total_amount).toFixed(2)}</strong><div class="tiny muted">${s.customer || '—'}</div></div>
+      <div class="tiny">${new Date(s.at).toLocaleString()}</div>
+    </div>
+    <div class="tiny muted">Itens: ${s.items.map(i => {
+      const p = products.find(x=>x.id===i.product_id);
+      return `${p ? p.name : '—'} x ${i.qty}`;
+    }).join(', ')}</div>
+    <div class="tiny">${s.observation || ''}</div></div>`;
+  }).join('') || '<div class="muted small">Nenhuma venda registrada</div>';
+  $('#salesList').innerHTML = html;
+  // balance display
+  $('#saldoValor').textContent = money(storage.load('p10_balance') || 0);
+}
+
+// Customers render
+function renderCustomers(){
+  const list = storage.load('p10_customers') || [];
+  const html = list.map(c => `<div style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.02)"><strong>${c.name}</strong> <div class="tiny muted">${c.cpf_cnpj||''} • ${c.phone||''}</div></div>`).join('') || '<div class="muted small">Sem clientes</div>';
+  $('#customersList').innerHTML = html;
+}
+
+// Users render
+function renderUsers(){
+  const list = storage.load('p10_users') || [];
+  const html = list.map(u => `<div style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.02)"><strong>${u.name}</strong> <div class="tiny muted">${u.email} • ${u.role}</div></div>`).join('');
+  $('#usersList').innerHTML = html || '<div class="muted small">Nenhum usuário</div>';
+}
+
+// Audit render (single unified implementation)
+function renderAudit(){
+  const logs = storage.load('p10_audit') || [];
+  const html = logs.map(l => `<div style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.02)"><div style="display:flex;justify-content:space-between"><div><strong>${l.entity}</strong> • ${l.action}</div><div class="tiny muted">${new Date(l.at).toLocaleString()}</div></div><div class="tiny muted">Usuário: ${l.user} • ${JSON.stringify(l.payload || {})}</div></div>`).join('');
+  $('#auditList').innerHTML = html || '<div class="muted small">Sem logs</div>';
+}
+
+// Dashboard render
+function renderDashboard(){
+  const products = storage.load('p10_products') || [];
+  let totalVal = 0;
+  products.forEach(p => totalVal += (Number(p.stock) || 0) * (Number(p.cost_price) || 0));
+  $('#valorEstoque').textContent = money(totalVal);
+  const criticos = products.filter(p => p.stock <= p.stock_min);
+  $('#countCriticos').textContent = criticos.length;
+  $('#countProdutos').textContent = products.length;
+  // recent list handled in renderMovements
+}
+
+// render select options for movements and sales
+function renderSelects(){
+  const products = storage.load('p10_products') || [];
+  const opts = products.map(p => `<option value="${p.id}">${p.name} • ${p.sku} • Estoque: ${p.stock}</option>`).join('') || '<option value="">Sem produtos</option>';
+  const mv = $('#mv_product'); if(mv) mv.innerHTML = opts;
+  const sp = $('#sale_product'); if(sp) sp.innerHTML = opts;
+  const fc = $('#filterCategory'); if(fc) fc.innerHTML = '<option value="">Todos</option>';
+}
+
+// render movements, sales, etc.
+renderProducts(); renderMovements(); renderSales(); renderCustomers(); renderUsers(); renderAudit(); renderDashboard(); renderSelects();
+
+// ---------- Forms & Buttons ----------
+$('#loginForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const u = $('#loginUser').value.trim();
+  const p = $('#loginPass').value;
+  const res = login(u,p);
+  if(!res.ok){ $('#loginMsg').style.display='block'; $('#loginMsg').textContent = res.msg; return; }
+  $('#loginMsg').style.display='none';
+  showLogin(false);
+});
+$('#btnInitDemo').addEventListener('click', ()=>{
+  loginDemo(); showLogin(false);
+});
+
+// New product modal (simple prompt flows)
+$('#btnNewProduct').addEventListener('click', openNewProduct);
+$('#openNewProduct').addEventListener('click', openNewProduct);
+function openNewProduct(){
+  const name = prompt('Nome do produto:');
+  if(!name) return;
+  const sku = prompt('SKU (ou deixe vazio para gerar):') || undefined;
+  const cost = parseFloat(prompt('Custo (R$):','0')||0);
+  const price = parseFloat(prompt('Preço de venda (R$):','0')||0);
+  const stock = parseInt(prompt('Estoque inicial:','0')||0);
+  const stock_min = parseInt(prompt('Estoque mínimo:','0')||0);
+  const desc = prompt('Descrição (opcional):')||'';
+  try{
+    const p = createProduct({sku,name,cost_price:cost,sale_price:price,stock,stock_min,description:desc});
+    alert('Produto criado: ' + p.name);
+  }catch(err){ alert('Erro: '+err.message) }
+}
+
+// Edit product flow
+function openEditProduct(id){
+  const products = storage.load('p10_products') || [];
+  const p = products.find(x=>x.id===id);
+  if(!p) return alert('Produto não encontrado');
+  const name = prompt('Nome:', p.name) || p.name;
+  const sku = prompt('SKU:', p.sku) || p.sku;
+  const cost = parseFloat(prompt('Custo (R$):', String(p.cost_price))||p.cost_price);
+  const price = parseFloat(prompt('Preço de venda (R$):', String(p.sale_price))||p.sale_price);
+  const stock = parseInt(prompt('Estoque atual:', String(p.stock))||p.stock);
+  const stock_min = parseInt(prompt('Estoque mínimo:', String(p.stock_min))||p.stock_min);
+  const desc = prompt('Descrição:', p.description)||p.description;
+  updateProduct(id, { name, sku, cost_price:cost, sale_price:price, stock, stock_min, description:desc });
+}
+
+// Movement form
+$('#formMovement').addEventListener('submit', e=>{
+  e.preventDefault();
+  try{
+    const product_id = $('#mv_product').value;
+    const type = $('#mv_type').value;
+    const quantity = Number($('#mv_qty').value) || 0;
+    const reference = $('#mv_reference').value;
+    const note = $('#mv_note').value;
+    if(!product_id) return alert('Selecione um produto');
+    createMovement({ product_id, type, quantity, reference, note, user_id: $('#mv_user').value || currentUser?.name });
+    $('#mv_reference').value=''; $('#mv_note').value=''; $('#mv_qty').value='1';
+    alert('Movimentação registrada');
+  }catch(err){ alert('Erro: '+err.message) }
+});
+$('#btnClearMov').addEventListener('click', ()=>{ $('#mv_reference').value=''; $('#mv_note').value=''; $('#mv_qty').value='1'; });
+
+// Sales form (COMPLETAÇÃO E PROTEÇÕES)
+$('#formSale').addEventListener('submit', e=>{
+  e.preventDefault();
+  try{
+    const pid = $('#sale_product').value;
+    const qty = Number($('#sale_qty').value) || 0;
+    const unit_price_raw = $('#sale_price').value;
+    // if user left price blank, treat as null so product price is used
+    const unit_price = unit_price_raw === '' ? null : Number(unit_price_raw);
+    if(!pid) return alert('Selecione produto');
+    if(qty <= 0) return alert('Quantidade inválida');
+    const products = storage.load('p10_products') || [];
+    const p = products.find(x=>x.id===pid);
+    if(!p) return alert('Produto não encontrado');
+    const price = unit_price || Number(p.sale_price || 0);
+    // build sale item and create sale
+    createSale({ customer: $('#sale_customer').value, items: [{product_id: pid, qty, unit_price: price}], observation: $('#sale_note').value, user: $('#sale_user').value || currentUser?.name });
+    alert('Venda registrada. Total: ' + money(price * qty));
+    $('#sale_qty').value='1'; $('#sale_price').value=''; $('#sale_customer').value=''; $('#sale_note').value='';
+  }catch(err){ alert('Erro: '+err.message) }
+});
+$('#btnQuickSale').addEventListener('click', ()=>{
+  const pid = $('#sale_product').value; if(!pid) return alert('Selecione produto');
+  const products = storage.load('p10_products') || [];
+  const p = products.find(x=>x.id===pid); if(!p) return;
+  $('#sale_price').value = Number(p.sale_price||0);
+});
+
+// Customers
+$('#formCustomer').addEventListener('submit', e=>{
+  e.preventDefault();
+  const name = $('#cust_name').value.trim(); if(!name) return alert('Nome obrigatório');
+  createCustomer({ name, cpf: $('#cust_cpf').value.trim(), phone: $('#cust_phone').value.trim(), email: $('#cust_email').value.trim() });
+  $('#cust_name').value=''; $('#cust_cpf').value=''; $('#cust_phone').value=''; $('#cust_email').value='';
+  alert('Cliente salvo');
+});
+
+// Users form
+$('#formUser').addEventListener('submit', e=>{
+  e.preventDefault();
+  try{
+    const name = $('#usr_name').value.trim(); const email = $('#usr_email').value.trim(); const password = $('#usr_password').value; const role = $('#usr_role').value;
+    if(!name || !email || !password) return alert('Preencha todos os campos');
+    createUser({ name, email, password, role });
+    $('#usr_name').value=''; $('#usr_email').value=''; $('#usr_password').value=''; $('#usr_role').value='seller';
+    alert('Usuário criado');
+  }catch(err){ alert('Erro: '+err.message) }
+});
+
+// Export / Import
+$('#btnExport').addEventListener('click', ()=>{
+  const data = {
+    users: storage.load('p10_users'),
+    products: storage.load('p10_products'),
+    movements: storage.load('p10_movements'),
+    sales: storage.load('p10_sales'),
+    customers: storage.load('p10_customers'),
+    audit: storage.load('p10_audit'),
+    balance: storage.load('p10_balance') || 0
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'ponto10-backup.json'; a.click(); URL.revokeObjectURL(url);
+});
+$('#btnImport').addEventListener('click', ()=>{
+  const txt = prompt('Cole aqui o JSON de backup (ou use um editor para colar).');
+  if(!txt) return;
+  try{
+    const data = JSON.parse(txt);
+    if(confirm('Importar e substituir dados atuais?')) {
+      if(data.users) storage.save('p10_users', data.users);
+      if(data.products) storage.save('p10_products', data.products);
+      if(data.movements) storage.save('p10_movements', data.movements);
+      if(data.sales) storage.save('p10_sales', data.sales);
+      if(data.customers) storage.save('p10_customers', data.customers);
+      if(data.audit) storage.save('p10_audit', data.audit);
+      if(data.balance !== undefined) storage.save('p10_balance', data.balance);
+      alert('Dados importados. A página será recarregada.');
+      location.reload();
+    }
+  }catch(err){ alert('JSON inválido: ' + err.message) }
+});
+
+// Quick open panels
+$('#openMovements').addEventListener('click', ()=> {
+  $$('.tab').forEach(t => t.classList.remove('active'));
+  const tab = document.querySelector('.tab[data-view="movements"]');
+  if(tab) tab.classList.add('active');
+  // hide all and show movements
+  $$('#view-dashboard, #view-products, #view-movements, #view-sales, #view-customers, #view-users, #view-audit')
+    .forEach(v => v.style.display = 'none');
+  $('#view-movements').style.display = 'block';
+});
+$('#openSale').addEventListener('click', ()=> {
+  $$('.tab').forEach(t => t.classList.remove('active'));
+  const tab = document.querySelector('.tab[data-view="sales"]');
+  if(tab) tab.classList.add('active');
+  $$('#view-dashboard, #view-products, #view-movements, #view-sales, #view-customers, #view-users, #view-audit')
+    .forEach(v => v.style.display = 'none');
+  $('#view-sales').style.display = 'block';
+});
+
+// Reset all data
+$('#btnClearAll').addEventListener('click', ()=>{
+  if(!confirm('Deseja realmente apagar todos os dados? Isso não pode ser desfeito.')) return;
+  localStorage.removeItem('p10_users');
+  localStorage.removeItem('p10_products');
+  localStorage.removeItem('p10_movements');
+  localStorage.removeItem('p10_sales');
+  localStorage.removeItem('p10_customers');
+  localStorage.removeItem('p10_audit');
+  localStorage.removeItem('p10_balance');
+  alert('Dados apagados. A página será recarregada.');
+  location.reload();
+});
+
+// Logout
+$('#btnLogout').addEventListener('click', ()=>{
+  logout();
+});
+
+// init: show login
+showLogin(true);
+
+// Render lists after doc ready (in case)
+document.addEventListener('DOMContentLoaded', ()=> {
+  renderProducts(); renderMovements(); renderSales(); renderCustomers(); renderUsers(); renderAudit(); renderDashboard();
+});
+
+// search products live
+$('#searchProduct').addEventListener('input', ()=> renderProducts());
+
+// Ensure dashboard values reflect updates (balance)
+setInterval(()=> {
+  const el = $('#saldoValor');
+  if(el) el.textContent = money(storage.load('p10_balance') || 0);
+}, 2000);
+
+</script>
+</body>
+</html>
